@@ -34,6 +34,9 @@
   .tab.active { background:#111; color:#fff; }
   .section { display:none; }
   .section.active { display:block; }
+  .mode-tabs { display:flex; gap:8px; margin-top:10px; }
+  .mode-tab { flex:1; padding:8px; border-radius:7px; background:#eee; font-weight:800; text-align:center; cursor:pointer; font-size:13px; }
+  .mode-tab.active { background:#111; color:#fff; }
   .preview-note { font-size: 12px; color: #444; margin-bottom: 12px; }
 
   .sheet { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
@@ -95,6 +98,8 @@
   .contact-company { font-size:.115in; font-weight:900; margin-top:.025in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .contact-title { font-size:.10in; font-weight:700; margin-top:.025in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .contact-detail { font-size:.085in; font-weight:700; margin-top:.03in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .contact-logo { position:absolute; right:.10in; bottom:.08in; max-width:.58in; max-height:.32in; object-fit:contain; }
+  .contact-card.qronly .contact-logo { display:none; }
   .calibration-page { page: signportrait; width:8.5in; height:11in; background:#fff; border:2px solid #000; padding:.4in; page-break-after:always; break-after:page; }
   .calibration-box { border:3px solid #000; width:6in; height:4in; display:flex; align-items:center; justify-content:center; font-size:.35in; font-weight:900; margin:.35in auto; text-align:center; }
 
@@ -117,7 +122,7 @@
 <div class="app">
   <aside class="panel no-print">
     <h1>Warehouse Label Generator</h1>
-    <div class="hint">Version 5: Rack labels, warehouse signs, customer/pallet labels, contact QR cards, saved settings, export/import, and test calibration.</div>
+    <div class="hint">Version 1.0: rack labels, warehouse signs, simple/bulk pallet labels, contact QR cards with optional logo, saved settings, export/import, and test calibration.</div>
 
     <h2>Template</h2>
     <div class="tabs">
@@ -237,9 +242,40 @@
 
     <div id="palletControls" style="display:none">
       <h2>4x6 Customer / Pallet Label</h2>
-      <div class="hint">Paste CSV rows below or type one label. CSV order: LWHID, Customer, Item, Lot, Qty, Bay, Date Received, Customer ID.</div>
-      <label>Pallet Label Rows</label>
-      <textarea id="palletCsv" placeholder="1003140,NISSAN,177977200,00-00-00,200,MR201,07/07/2026,514FS6963"></textarea>
+      <div class="hint">Simple Entry is manager-friendly for one label at a time. Bulk Paste still supports CSV or tab-delimited rows from Excel.</div>
+      <div class="mode-tabs">
+        <div class="mode-tab active" onclick="setPalletMode('simple')" id="palletModeSimple">Simple Entry</div>
+        <div class="mode-tab" onclick="setPalletMode('bulk')" id="palletModeBulk">Bulk Paste</div>
+      </div>
+
+      <div id="palletSimpleSection" class="section active">
+        <div class="row">
+          <div><label>LWHID / Control #</label><input id="palletLwhid" placeholder="1003140" /></div>
+          <div><label>Customer</label><input id="palletCustomer" placeholder="NISSAN" /></div>
+        </div>
+        <div class="row">
+          <div><label>Customer ID / Comments</label><input id="palletCustid" placeholder="514FS6963" /></div>
+          <div><label>Bay</label><input id="palletBay" placeholder="MR201" /></div>
+        </div>
+        <label>Item Number</label>
+        <input id="palletItem" placeholder="177977200" />
+        <label>Item Description</label>
+        <input id="palletDesc" placeholder="Optional description" />
+        <div class="row">
+          <div><label>Lot Number</label><input id="palletLot" placeholder="00-00-00" /></div>
+          <div><label>Quantity</label><input id="palletQty" placeholder="200" /></div>
+        </div>
+        <label>Date Received</label>
+        <input id="palletDate" placeholder="07/07/2026" />
+      </div>
+
+      <div id="palletBulkSection" class="section">
+        <label>Pallet Label Rows</label>
+        <textarea id="palletCsv" placeholder="LWHID,Customer,Item,Lot,Qty,Bay,Date Received,Customer ID
+1003140,NISSAN,177977200,00-00-00,200,MR201,07/07/2026,514FS6963"></textarea>
+        <div class="hint">Bulk order: LWHID, Customer, Item, Lot, Qty, Bay, Date Received, Customer ID. Tab-delimited Excel paste also works.</div>
+      </div>
+
       <div class="row">
         <div><label>Copies Each</label><input id="palletCopies" type="number" value="1" min="1" max="10" /></div>
         <div><label>Barcode Value</label><select id="palletBarcodeField"><option value="lwhid" selected>LWHID</option><option value="bay">Bay</option><option value="item">Item</option><option value="lot">Lot</option></select></div>
@@ -271,6 +307,10 @@
       </div>
       <label>Address</label>
       <input id="contactAddress" placeholder="Street, City, State ZIP" />
+      <label>Optional Logo</label>
+      <input id="contactLogoFile" type="file" accept="image/*" onchange="loadContactLogo(event)" />
+      <input id="contactLogoData" type="hidden" />
+      <button class="secondary smallbtn" onclick="clearContactLogo()">Clear Logo</button>
       <div class="row3">
         <div><label>Copies</label><input id="contactCopies" type="number" value="1" min="1" max="100" /></div>
         <div><label>Layout</label><select id="contactLayout"><option value="full" selected>QR + Text</option><option value="qronly">QR Only</option></select></div>
@@ -303,6 +343,7 @@
 
 <script>
 let currentTemplate = 'rack';
+let palletMode = 'simple';
 
 function setTemplate(template) {
   currentTemplate = template;
@@ -314,8 +355,8 @@ function setTemplate(template) {
   document.getElementById('signControls').style.display = template === 'sign' ? 'block' : 'none';
   document.getElementById('palletControls').style.display = template === 'pallet' ? 'block' : 'none';
   document.getElementById('contactControls').style.display = template === 'contact' ? 'block' : 'none';
-  saveSettings();
-  generate();
+  if (template === 'pallet') setPalletMode(palletMode || 'simple');
+  else { saveSettings(); generate(); }
 }
 
 function showInputTab(tab) {
@@ -355,6 +396,35 @@ function makeBatch(append) {
   box.value = append && box.value.trim() ? box.value.trim() + '\n' + lines.join('\n') : lines.join('\n');
   showInputTab('paste');
   generate();
+}
+
+function setPalletMode(mode) {
+  palletMode = mode;
+  document.getElementById('palletModeSimple').classList.toggle('active', mode === 'simple');
+  document.getElementById('palletModeBulk').classList.toggle('active', mode === 'bulk');
+  document.getElementById('palletSimpleSection').classList.toggle('active', mode === 'simple');
+  document.getElementById('palletBulkSection').classList.toggle('active', mode === 'bulk');
+  generate();
+}
+
+function getSimplePalletRow() {
+  return {
+    lwhid: document.getElementById('palletLwhid').value.trim(),
+    customer: document.getElementById('palletCustomer').value.trim(),
+    item: document.getElementById('palletItem').value.trim(),
+    desc: document.getElementById('palletDesc').value.trim(),
+    lot: document.getElementById('palletLot').value.trim(),
+    qty: document.getElementById('palletQty').value.trim(),
+    bay: document.getElementById('palletBay').value.trim(),
+    date: document.getElementById('palletDate').value.trim(),
+    custid: document.getElementById('palletCustid').value.trim()
+  };
+}
+
+function getPalletRows() {
+  if (palletMode === 'bulk') return parsePalletRows(document.getElementById('palletCsv').value);
+  const row = getSimplePalletRow();
+  return Object.values(row).some(Boolean) ? [row] : [];
 }
 
 function cleanList() {
@@ -400,12 +470,12 @@ function parseCsvLine(line) {
 }
 function parsePalletRows(text) {
   return text.split(/\n+/).map(x => x.trim()).filter(Boolean).map(line => {
-    const p = parseCsvLine(line);
-    return { lwhid:p[0]||'', customer:p[1]||'', item:p[2]||'', lot:p[3]||'', qty:p[4]||'', bay:p[5]||'', date:p[6]||'', custid:p[7]||'' };
+    const p = line.indexOf('\t') >= 0 ? line.split(/\t+/).map(x => x.trim()) : parseCsvLine(line);
+    return { lwhid:p[0]||'', customer:p[1]||'', item:p[2]||'', desc:p[8]||'', lot:p[3]||'', qty:p[4]||'', bay:p[5]||'', date:p[6]||'', custid:p[7]||'' };
   });
 }
 function qrPayload(row) {
-  return ['LWHID:'+row.lwhid,'Customer:'+row.customer,'Item:'+row.item,'Lot:'+row.lot,'Qty:'+row.qty,'Bay:'+row.bay,'Date:'+row.date,'CustomerID:'+row.custid].filter(x => !x.endsWith(':')).join('|');
+  return ['LWHID:'+row.lwhid,'Customer:'+row.customer,'Item:'+row.item,'Description:'+(row.desc||''),'Lot:'+row.lot,'Qty:'+row.qty,'Bay:'+row.bay,'Date:'+row.date,'CustomerID:'+row.custid].filter(x => !x.endsWith(':')).join('|');
 }
 function pickBarcodeValue(row) {
   const f = document.getElementById('palletBarcodeField').value;
@@ -445,7 +515,7 @@ function generate() {
   else if (currentTemplate === 'pallet') total = generatePalletLabels(holder);
   else if (currentTemplate === 'contact') total = generateContactCards(holder);
   else total = generateRackLabels(locations, holder);
-  const sourceCount = currentTemplate === 'pallet' ? parsePalletRows(document.getElementById('palletCsv').value).length : (currentTemplate === 'contact' ? 1 : locations.length);
+  const sourceCount = currentTemplate === 'pallet' ? getPalletRows().length : (currentTemplate === 'contact' ? 1 : locations.length);
   document.getElementById('countText').textContent = total ? `${total} page${total === 1 ? '' : 's'} generated from ${sourceCount} record${sourceCount === 1 ? '' : 's'}.` : 'No labels generated yet.';
   document.getElementById('previewNote').textContent = currentTemplate === 'sign' ? 'Preview: 8.5x11 warehouse signs. Print on letter-size paper/cardstock.' : (currentTemplate === 'pallet' ? 'Preview: 4x6 customer/pallet labels.' : (currentTemplate === 'contact' ? 'Preview: credit card / ID badge size contact QR cards.' : 'Preview: 4x6 rack labels. Print to Zebra as 4x6 landscape.'));
   saveSettings();
@@ -523,7 +593,7 @@ function generateSigns(locations, holder) {
 }
 
 function generatePalletLabels(holder) {
-  const rows = parsePalletRows(document.getElementById('palletCsv').value);
+  const rows = getPalletRows();
   const copies = Math.max(1, parseInt(document.getElementById('palletCopies').value || '1', 10));
   const showBarcode = document.getElementById('palletShowBarcode').value === 'yes';
   const showQr = document.getElementById('palletShowQr').value === 'yes';
@@ -544,6 +614,7 @@ function generatePalletLabels(holder) {
         </div>
         <div class="pallet-grid">
           <div class="lbl">Item</div><div class="val">${escapeHtml(row.item)}</div>
+          <div class="lbl">Desc</div><div class="val">${escapeHtml(row.desc || '')}</div>
           <div class="lbl">Lot</div><div class="val">${escapeHtml(row.lot)}</div>
           <div class="lbl">Qty</div><div class="val">${escapeHtml(row.qty)}</div>
           <div class="lbl">Bay</div><div class="val">${escapeHtml(row.bay)}</div>
@@ -578,6 +649,7 @@ function generateContactCards(holder) {
   const phone = document.getElementById('contactPhone').value.trim();
   const email = document.getElementById('contactEmail').value.trim();
   const website = document.getElementById('contactWebsite').value.trim();
+  const logoData = document.getElementById('contactLogoData').value;
   const vcard = makeVCard();
   let total = 0;
   for (let c=0;c<copies;c++) {
@@ -597,7 +669,8 @@ function generateContactCards(holder) {
           <div class="contact-detail">${escapeHtml(phone)}</div>
           <div class="contact-detail">${escapeHtml(email)}</div>
           <div class="contact-detail">${escapeHtml(website)}</div>
-        </div>`;
+        </div>
+        ${logoData ? `<img class="contact-logo" src="${logoData}" alt="Logo" />` : ''}`;
     }
     holder.appendChild(div);
     const qrEl = document.getElementById(qrId);
@@ -608,6 +681,22 @@ function generateContactCards(holder) {
     }
   }
   return total;
+}
+
+function loadContactLogo(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('contactLogoData').value = e.target.result;
+    generate();
+  };
+  reader.readAsDataURL(file);
+}
+function clearContactLogo() {
+  document.getElementById('contactLogoData').value = '';
+  document.getElementById('contactLogoFile').value = '';
+  generate();
 }
 
 function loadContactSample() {
@@ -634,7 +723,7 @@ function printTestPage() {
 }
 
 function exportList() {
-  let content = currentTemplate === 'pallet' ? document.getElementById('palletCsv').value : (currentTemplate === 'contact' ? makeVCard() : document.getElementById('bayList').value);
+  let content = currentTemplate === 'pallet' ? (palletMode === 'bulk' ? document.getElementById('palletCsv').value : JSON.stringify(getSimplePalletRow(), null, 2)) : (currentTemplate === 'contact' ? makeVCard() : document.getElementById('bayList').value);
   const blob = new Blob([content], {type:'text/plain'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -645,12 +734,12 @@ function exportList() {
 function importList(event) {
   const file = event.target.files[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = e => { if (currentTemplate === 'pallet') document.getElementById('palletCsv').value = e.target.result; else document.getElementById('bayList').value = e.target.result; generate(); };
+  reader.onload = e => { if (currentTemplate === 'pallet') { setPalletMode('bulk'); document.getElementById('palletCsv').value = e.target.result; } else document.getElementById('bayList').value = e.target.result; generate(); };
   reader.readAsText(file); event.target.value = '';
 }
 function saveSettings() {
-  const ids = ['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactCopies','contactLayout','contactQrSize','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactCopies','contactLayout','contactQrSize'];
-  const data = { currentTemplate };
+  const ids = ['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactLogoData','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactCopies','contactLayout','contactQrSize'];
+  const data = { currentTemplate, palletMode };
   ids.forEach(id => { const el=document.getElementById(id); if (el) data[id]=el.value; });
   localStorage.setItem('warehouseLabelSettingsV5', JSON.stringify(data));
 }
@@ -659,6 +748,7 @@ function loadSettings() {
     const data = JSON.parse(localStorage.getItem('warehouseLabelSettingsV5') || '{}');
     Object.keys(data).forEach(id => { if (id !== 'currentTemplate') { const el=document.getElementById(id); if (el) el.value=data[id]; }});
     if (data.currentTemplate) currentTemplate = data.currentTemplate;
+    if (data.palletMode) palletMode = data.palletMode;
   } catch(e) {}
 }
 
@@ -672,13 +762,14 @@ function loadSample() {
 function clearAll() {
   document.getElementById('bayList').value = '';
   document.getElementById('palletCsv').value = '';
-  ['contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress'].forEach(id => document.getElementById(id).value = '');
+  ['palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate'].forEach(id => document.getElementById(id).value = '');
+  ['contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactLogoData'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('output').innerHTML = '';
   document.getElementById('countText').textContent = 'No labels generated yet.';
   document.getElementById('previewNote').textContent = '';
 }
 
-['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactCopies','contactLayout','contactQrSize'].forEach(id => {
+['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactLogoData','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactLogoData','contactCopies','contactLayout','contactQrSize'].forEach(id => {
   document.addEventListener('change', e => { if (e.target && e.target.id === id) generate(); });
   document.addEventListener('keyup', e => { if (e.target && e.target.id === id) generate(); });
 });

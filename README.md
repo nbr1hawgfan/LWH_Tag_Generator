@@ -1,25 +1,29 @@
-# Warehouse Label Generator PWA
+# LWH Tag Generator PWA v1.1
 
-A browser-based warehouse label/sign generator for:
+This package is ready for GitHub Pages and should trigger Chrome/Edge install once published over HTTPS.
 
-- 4x6 rack labels
-- 8.5x11 bay/aisle signs
-- 4x6 customer/pallet labels
-- Contact QR/vCard cards
+## Files included
+- `index.html`
+- `manifest.json`
+- `service-worker.js`
+- `icons/icon-192.png`
+- `icons/icon-512.png`
 
-## GitHub Pages setup
+## Upload to GitHub
+Upload the contents of this folder to the repo root:
 
-1. Create a new GitHub repository.
-2. Upload all files from this folder to the repo root.
-3. In GitHub, go to Settings > Pages.
-4. Set Source to Deploy from a branch.
-5. Select main branch and /root.
-6. Save.
-7. Open the GitHub Pages URL in Chrome or Edge.
-8. Use the browser install option to install it as an app.
+`https://github.com/nbr1hawgfan/LWH_Tag_Generator`
 
-## Notes
+Then open:
 
-- Printing still depends on the local Zebra/Windows printer driver settings.
-- The PWA will work best over HTTPS, which GitHub Pages provides.
-- Offline mode works after the app has been loaded once successfully.
+`https://nbr1hawgfan.github.io/LWH_Tag_Generator/`
+
+## Install tips
+After uploading, open the site and hard refresh once:
+
+Windows Chrome/Edge: `Ctrl + Shift + R`
+
+Then wait 10–30 seconds. The install icon usually appears in the address bar, or under the browser menu as **Install app**.
+
+## Important fix in v1.1
+The service worker now pre-caches only local files. External CDN scripts are cached only after they load successfully. This makes the service worker install much more reliable on GitHub Pages.

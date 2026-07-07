@@ -1,801 +1,163 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#7a0019"> 
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#111827" />
-<link rel="manifest" href="manifest.json" />
-<link rel="apple-touch-icon" href="icons/icon-192.png" />
-<title>Warehouse Label Generator</title>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<style>
-  :root { --rack-w: 6in; --rack-h: 4in; }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #f4f4f4; color: #111; }
-  .app { display: grid; grid-template-columns: 410px 1fr; min-height: 100vh; }
-  .panel { background: #fff; padding: 18px; border-right: 1px solid #ccc; position: sticky; top: 0; height: 100vh; overflow: auto; }
-  h1 { font-size: 20px; margin: 0 0 6px; }
-  h2 { font-size: 15px; margin: 18px 0 6px; border-top: 1px solid #ddd; padding-top: 14px; }
-  label { display: block; font-weight: 700; margin-top: 11px; }
-  textarea, input, select { width: 100%; padding: 9px; margin-top: 5px; border: 1px solid #aaa; border-radius: 6px; font-size: 14px; }
-  textarea { height: 155px; resize: vertical; font-family: Consolas, monospace; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-  button { width: 100%; border: 0; border-radius: 8px; padding: 11px; font-weight: 800; cursor: pointer; margin-top: 10px; font-size: 15px; }
-  .primary { background: #111; color: #fff; }
-  .secondary { background: #e5e5e5; color: #111; }
-  .smallbtn { padding: 9px; font-size: 13px; }
-  .hint { font-size: 12px; color: #555; line-height: 1.35; margin-top: 10px; }
-  .preview-wrap { padding: 22px; overflow: auto; }
-  .count { font-weight: 700; margin-bottom: 14px; }
-  .tabs { display:flex; gap:8px; margin-top:12px; }
-  .tab { flex:1; padding:9px; border-radius:7px; background:#eee; font-weight:800; text-align:center; cursor:pointer; }
-  .tab.active { background:#111; color:#fff; }
-  .section { display:none; }
-  .section.active { display:block; }
-  .mode-tabs { display:flex; gap:8px; margin-top:10px; }
-  .mode-tab { flex:1; padding:8px; border-radius:7px; background:#eee; font-weight:800; text-align:center; cursor:pointer; font-size:13px; }
-  .mode-tab.active { background:#111; color:#fff; }
-  .preview-note { font-size: 12px; color: #444; margin-bottom: 12px; }
-
-  .sheet { display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
-
-  /* 4x6 Rack Label */
-  .rack-label { page: rackpage; width: 6in; height: 4in; background: white; border: 3px solid #000; position: relative; page-break-after: always; break-after: page; overflow: hidden; }
-  .rack-big-box { position: absolute; left: 1.05in; right: .78in; top: .23in; height: 1.52in; border: .055in solid #000; display: flex; align-items: center; justify-content: center; padding: .03in .12in; }
-  .rack-big-text { font-weight: 900; font-size: 1.12in; line-height: 1; letter-spacing: .015in; white-space: nowrap; }
-  .rack-barcode-area { position: absolute; left: 1.35in; top: 1.82in; width: 1.75in; height: 1.02in; text-align: center; }
-  .rack-barcode-area svg { width: 100%; height: .88in; display:block; }
-  .rack-caption { font-size: .16in; font-weight: 800; margin-top: -.03in; }
-  .rack-qr-area { position: absolute; right: .94in; top: 1.82in; width: .95in; height: .95in; }
-  .rack-qr-area img, .rack-qr-area canvas { width: .95in !important; height: .95in !important; }
-
-  /* 8.5x11 Sign */
-  .sign { page: signlandscape; width: 11in; height: 8.5in; background: white; border: 4px solid #000; position: relative; page-break-after: always; break-after: page; overflow: hidden; padding: .35in; }
-  .sign.portrait { page: signportrait; width: 8.5in; height: 11in; }
-  .sign-title-box { border: .08in solid #000; height: 3.05in; display:flex; align-items:center; justify-content:center; padding:.1in .25in; }
-  .sign-title { font-weight: 900; font-size: 2.35in; line-height: .95; letter-spacing: .02in; white-space: nowrap; }
-  .sign-subtitle { font-size: .44in; font-weight: 900; text-align:center; margin-top:.18in; min-height:.55in; }
-  .sign-bottom { display:grid; grid-template-columns: 1fr 2.35in; gap:.35in; align-items:start; margin-top:.22in; }
-  .sign-barcode-wrap { text-align:center; }
-  .sign-barcode-wrap svg { width:100%; height:1.55in; display:block; }
-  .sign-caption { font-size:.36in; font-weight:900; margin-top:.04in; }
-  .sign-qr { width:2.2in; height:2.2in; justify-self:center; }
-  .sign-qr img, .sign-qr canvas { width:2.2in !important; height:2.2in !important; }
-  .sign.portrait .sign-title-box { height: 3.25in; margin-top: .25in; }
-  .sign.portrait .sign-title { font-size: 2.05in; }
-  .sign.portrait .sign-bottom { grid-template-columns: 1fr; gap:.18in; margin-top:.35in; }
-  .sign.portrait .sign-barcode-wrap svg { height:1.7in; }
-  .sign.portrait .sign-qr { margin-top:.05in; }
-
-
-  /* 4x6 Customer / Pallet Label */
-  .pallet-label { page: rackpage; width: 6in; height: 4in; background: white; border: 3px solid #000; position: relative; page-break-after: always; break-after: page; overflow: hidden; padding: .16in .18in; }
-  .pallet-header { display:flex; justify-content:space-between; align-items:flex-start; gap:.12in; border-bottom: .035in solid #000; padding-bottom:.06in; }
-  .pallet-customer { font-size:.33in; font-weight:900; line-height:1.02; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:4.2in; }
-  .pallet-lwhid { font-size:.19in; font-weight:900; text-align:right; }
-  .pallet-grid { display:grid; grid-template-columns: 1.05in 1fr; column-gap:.08in; row-gap:.035in; margin-top:.10in; font-size:.18in; line-height:1.05; }
-  .pallet-grid .lbl { font-weight:900; }
-  .pallet-grid .val { font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .pallet-bottom { position:absolute; left:.18in; right:.18in; bottom:.15in; display:grid; grid-template-columns: 1fr 1.05in; gap:.18in; align-items:end; }
-  .pallet-barcode-wrap svg { width:100%; height:.78in; display:block; }
-  .pallet-caption { font-size:.16in; font-weight:900; text-align:center; margin-top:.02in; }
-  .pallet-qr { width:1.0in; height:1.0in; justify-self:end; }
-  .pallet-qr img, .pallet-qr canvas { width:1.0in !important; height:1.0in !important; }
-  .pallet-smallnote { position:absolute; left:.18in; right:.18in; bottom:1.13in; font-size:.13in; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-
-
-  /* Credit Card Contact QR */
-  .contact-card { page: cardpage; width: 3.375in; height: 2.125in; background: white; border: 2px solid #000; position: relative; page-break-after: always; break-after: page; overflow: hidden; padding: .12in; display:grid; grid-template-columns: 1.18in 1fr; gap:.12in; align-items:center; }
-  .contact-card.qronly { display:flex; align-items:center; justify-content:center; padding:.12in; }
-  .contact-qr { width:1.12in; height:1.12in; }
-  .contact-qr img, .contact-qr canvas { width:1.12in !important; height:1.12in !important; }
-  .contact-card.qronly .contact-qr { width:1.75in; height:1.75in; }
-  .contact-card.qronly .contact-qr img, .contact-card.qronly .contact-qr canvas { width:1.75in !important; height:1.75in !important; }
-  .contact-info { min-width:0; }
-  .contact-name { font-size:.19in; font-weight:900; line-height:1.02; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .contact-company { font-size:.115in; font-weight:900; margin-top:.025in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .contact-title { font-size:.10in; font-weight:700; margin-top:.025in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .contact-detail { font-size:.085in; font-weight:700; margin-top:.03in; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .contact-logo { position:absolute; right:.10in; bottom:.08in; max-width:.58in; max-height:.32in; object-fit:contain; }
-  .contact-card.qronly .contact-logo { display:none; }
-  .calibration-page { page: signportrait; width:8.5in; height:11in; background:#fff; border:2px solid #000; padding:.4in; page-break-after:always; break-after:page; }
-  .calibration-box { border:3px solid #000; width:6in; height:4in; display:flex; align-items:center; justify-content:center; font-size:.35in; font-weight:900; margin:.35in auto; text-align:center; }
-
-  @page rackpage { size: 6in 4in; margin: 0; }
-  @page signlandscape { size: 11in 8.5in; margin: 0; }
-  @page signportrait { size: 8.5in 11in; margin: 0; }
-  @page cardpage { size: 3.375in 2.125in; margin: 0; }
-
-  @media print {
-    html, body { margin: 0 !important; padding: 0 !important; background: #fff; }
-    .no-print, .panel { display: none !important; }
-    .app { display: block; min-height: auto; }
-    .preview-wrap { padding: 0; margin: 0; overflow: visible; }
-    .sheet { display: block; gap: 0; }
-    .rack-label, .sign { box-shadow: none; margin: 0; }
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LWH Warehouse Toolkit</title>
+  <meta name="theme-color" content="#7a0019" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icons/favicon.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/print.css" media="print" />
+  <script defer src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script defer src="./js/storage.js"></script>
+  <script defer src="./js/qr.js"></script>
+  <script defer src="./js/barcode.js"></script>
+  <script defer src="./js/ui.js"></script>
+  <script defer src="./js/labels.js"></script>
+  <script defer src="./js/visitors.js"></script>
+  <script defer src="./js/app.js"></script>
 </head>
 <body>
-<div class="app">
-  <aside class="panel no-print">
-    <h1>Warehouse Label Generator</h1>
-    <div class="hint">Version 1.0: rack labels, warehouse signs, simple/bulk pallet labels, contact QR cards with optional logo, saved settings, export/import, and test calibration.</div>
-
-    <h2>Template</h2>
-    <div class="tabs">
-      <div class="tab active" onclick="setTemplate('rack')" id="tabRack">4x6 Rack Labels</div>
-      <div class="tab" onclick="setTemplate('sign')" id="tabSign">8.5x11 Signs</div>
-      <div class="tab" onclick="setTemplate('pallet')" id="tabPallet">Pallet Labels</div>
-      <div class="tab" onclick="setTemplate('contact')" id="tabContact">Contact QR</div>
+  <header class="app-header no-print">
+    <div>
+      <div class="eyebrow">Logistics Warehouse</div>
+      <h1>Warehouse Toolkit</h1>
+      <div class="version">v1.0.0</div>
     </div>
-
-    <h2>Locations</h2>
-    <div class="tabs">
-      <div class="tab active" onclick="showInputTab('paste')" id="tabPaste">Bulk Paste</div>
-      <div class="tab" onclick="showInputTab('batch')" id="tabBatch">Batch Numbering</div>
+    <div class="header-actions">
+      <button id="installBtn" class="ghost" hidden>Install App</button>
+      <button onclick="window.print()">Print</button>
     </div>
+  </header>
 
-    <div id="pasteSection" class="section active">
-      <label>Paste Locations</label>
-      <textarea id="bayList" placeholder="MR201&#10;MR202&#10;MR203"></textarea>
-      <button class="secondary smallbtn" onclick="cleanList()">Clean / Remove Duplicates</button>
-    </div>
+  <main class="app-shell">
+    <nav class="nav no-print" aria-label="Modules">
+      <button class="nav-btn active" data-view="home">Home</button>
+      <button class="nav-btn" data-view="rack">4x6 Rack Labels</button>
+      <button class="nav-btn" data-view="signs">8.5x11 Signs</button>
+      <button class="nav-btn" data-view="pallet">Pallet Labels</button>
+      <button class="nav-btn" data-view="contact">Contact QR</button>
+      <button class="nav-btn" data-view="visitor">Visitor Badges</button>
+      <button class="nav-btn" data-view="settings">Settings</button>
+    </nav>
 
-    <div id="batchSection" class="section">
-      <div class="row">
-        <div>
-          <label>Start Location</label>
-          <input id="batchStart" value="MR201" />
-        </div>
-        <div>
-          <label>How Many</label>
-          <input id="batchCount" type="number" value="32" min="1" max="500" />
-        </div>
+    <section id="home" class="view active no-print">
+      <div class="hero card">
+        <h2>LWH Warehouse Toolkit</h2>
+        <p>Print rack labels, bay signs, pallet labels, contact QR cards, and visitor badges from one installable app.</p>
       </div>
-      <div class="hint">Uses the last number it finds and keeps leading zeroes. Examples: MR201 → MR232, A01-001 → A01-032.</div>
-      <button class="secondary" onclick="makeBatch(false)">Create Batch List</button>
-      <button class="secondary" onclick="makeBatch(true)">Append Batch to List</button>
-    </div>
+      <div class="module-grid">
+        <button class="module-card" data-view="rack"><b>4x6 Rack Labels</b><span>Bay tags with 1D barcode and QR.</span></button>
+        <button class="module-card" data-view="signs"><b>8.5x11 Signs</b><span>Warehouse bay and aisle signage.</span></button>
+        <button class="module-card" data-view="pallet"><b>Pallet Labels</b><span>Simple entry or bulk import.</span></button>
+        <button class="module-card" data-view="contact"><b>Contact QR</b><span>Credit-card vCard QR labels.</span></button>
+        <button class="module-card" data-view="visitor"><b>Visitor Badges</b><span>Visitor, vendor, contractor badges.</span></button>
+        <button class="module-card" data-view="settings"><b>Settings</b><span>Defaults, calibration, and app info.</span></button>
+      </div>
+    </section>
 
-    <div id="rackControls">
-      <h2>4x6 Rack Layout</h2>
-      <div class="row">
-        <div>
-          <label>Text Size</label>
-          <input id="rackTextSize" type="number" value="1.12" min="0.5" max="1.6" step="0.02" />
-        </div>
-        <div>
-          <label>Copies Each</label>
-          <input id="copies" type="number" value="1" min="1" max="10" step="1" />
-        </div>
+    <section id="rack" class="view">
+      <div class="tool-layout">
+        <form class="panel no-print" id="rackForm">
+          <h2>4x6 Rack Labels</h2>
+          <label>Bulk bay/location list<textarea id="rackList" rows="8" placeholder="MR201&#10;MR202&#10;MR203"></textarea></label>
+          <div class="grid-2">
+            <label>Spacing<select id="rackSpacing"><option value="tight">Tight</option><option value="normal" selected>Normal</option><option value="wide">Wide</option></select></label>
+            <label>Copies<input id="rackCopies" type="number" min="1" value="1" /></label>
+            <label>Barcode height<input id="rackBarcodeHeight" type="number" min="30" max="160" value="90" /></label>
+            <label>Barcode width<input id="rackBarcodeWidth" type="number" min="1" max="4" value="2" /></label>
+          </div>
+          <details>
+            <summary>Batch numbering</summary>
+            <div class="grid-3"><label>Start<input id="rackBatchStart" placeholder="MR201" /></label><label>Count<input id="rackBatchCount" type="number" min="1" value="32" /></label><label>Pad<input id="rackBatchPad" type="number" min="0" value="3" /></label></div>
+            <button type="button" id="rackBatchBtn">Generate Batch</button>
+          </details>
+          <div class="actions"><button type="button" id="rackGenerate">Generate Labels</button><button type="button" id="rackClear" class="ghost">Clear</button></div>
+        </form>
+        <div id="rackOutput" class="print-area"></div>
       </div>
-      <div class="row3">
-        <div>
-          <label>Spacing</label>
-          <select id="spacingPreset"><option value="tight" selected>Tight</option><option value="normal">Normal</option><option value="wide">Wide</option></select>
-        </div>
-        <div>
-          <label>Barcode</label>
-          <select id="rackShowBarcode"><option value="yes">Show</option><option value="no">Hide</option></select>
-        </div>
-        <div>
-          <label>QR</label>
-          <select id="rackShowQr"><option value="yes">Show</option><option value="no">Hide</option></select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Barcode Height</label>
-          <input id="rackBarcodeHeight" type="number" value="88" min="45" max="120" step="1" />
-        </div>
-        <div>
-          <label>Barcode Width</label>
-          <input id="rackBarcodeWidth" type="number" value="2" min="1" max="4" step="0.2" />
-        </div>
-      </div>
-    </div>
+    </section>
 
-    <div id="signControls" style="display:none">
-      <h2>8.5x11 Sign Layout</h2>
-      <label>Subtitle / Small Text</label>
-      <input id="signSubtitle" placeholder="Optional, example: WHSE11 - Rack Bay" />
-      <div class="row">
-        <div>
-          <label>Orientation</label>
-          <select id="signOrientation"><option value="landscape" selected>Landscape</option><option value="portrait">Portrait</option></select>
-        </div>
-        <div>
-          <label>Copies Each</label>
-          <input id="signCopies" type="number" value="1" min="1" max="10" step="1" />
-        </div>
+    <section id="signs" class="view">
+      <div class="tool-layout">
+        <form class="panel no-print" id="signForm">
+          <h2>8.5x11 Bay / Aisle Signs</h2>
+          <label>Sign list<textarea id="signList" rows="8" placeholder="MR201&#10;MR202&#10;Aisle MR"></textarea></label>
+          <div class="grid-2">
+            <label>Orientation<select id="signOrientation"><option value="landscape" selected>Landscape</option><option value="portrait">Portrait</option></select></label>
+            <label>Subtitle<input id="signSubtitle" placeholder="Scan to assign or move pallet" /></label>
+            <label><input id="signShowQR" type="checkbox" checked /> Include QR Code</label>
+            <label><input id="signShowBarcode" type="checkbox" checked /> Include 1D Barcode</label>
+          </div>
+          <div class="actions"><button type="button" id="signGenerate">Generate Signs</button><button type="button" id="signClear" class="ghost">Clear</button></div>
+        </form>
+        <div id="signOutput" class="print-area"></div>
       </div>
-      <div class="row3">
-        <div>
-          <label>Title Size</label>
-          <input id="signTitleSize" type="number" value="2.35" min="1.1" max="3.2" step="0.05" />
-        </div>
-        <div>
-          <label>Barcode</label>
-          <select id="signShowBarcode"><option value="yes">Show</option><option value="no">Hide</option></select>
-        </div>
-        <div>
-          <label>QR</label>
-          <select id="signShowQr"><option value="yes">Show</option><option value="no">Hide</option></select>
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Barcode Height</label>
-          <input id="signBarcodeHeight" type="number" value="155" min="80" max="230" step="5" />
-        </div>
-        <div>
-          <label>Barcode Width</label>
-          <input id="signBarcodeWidth" type="number" value="3" min="1" max="5" step="0.2" />
-        </div>
-      </div>
-      <div class="hint">Use this for warehouse bay / aisle signs. The big text, barcode, and QR all use the exact same location value so your WMS scan should match the bay.</div>
-    </div>
+    </section>
 
-
-    <div id="palletControls" style="display:none">
-      <h2>4x6 Customer / Pallet Label</h2>
-      <div class="hint">Simple Entry is manager-friendly for one label at a time. Bulk Paste still supports CSV or tab-delimited rows from Excel.</div>
-      <div class="mode-tabs">
-        <div class="mode-tab active" onclick="setPalletMode('simple')" id="palletModeSimple">Simple Entry</div>
-        <div class="mode-tab" onclick="setPalletMode('bulk')" id="palletModeBulk">Bulk Paste</div>
+    <section id="pallet" class="view">
+      <div class="tool-layout">
+        <form class="panel no-print" id="palletForm">
+          <h2>Pallet Labels</h2>
+          <div class="segmented"><button type="button" class="seg active" data-pallet-mode="simple">Simple Entry</button><button type="button" class="seg" data-pallet-mode="bulk">Bulk Paste</button></div>
+          <div id="palletSimple">
+            <div class="grid-2">
+              <label>LWH ID / Control #<input id="palLwhid" /></label><label>Customer ID<input id="palCustId" /></label>
+              <label>Customer<input id="palCustomer" /></label><label>Bay<input id="palBay" /></label>
+              <label>Item #<input id="palItem" /></label><label>Lot #<input id="palLot" /></label>
+              <label>Qty<input id="palQty" /></label><label>Date Received<input id="palDate" type="date" /></label>
+            </div>
+            <label>Description<input id="palDesc" /></label>
+          </div>
+          <div id="palletBulk" hidden>
+            <p class="hint">Paste tab-delimited rows from Excel. Header row is okay.</p>
+            <textarea id="palletBulkText" rows="8" placeholder="LWHID&#9;Customer&#9;Item&#9;Lot&#9;Qty&#9;Bay"></textarea>
+          </div>
+          <div class="grid-2"><label><input id="palBarcode" type="checkbox" checked /> Include barcode</label><label><input id="palQR" type="checkbox" checked /> Include QR</label><label>Copies<input id="palCopies" type="number" min="1" value="1" /></label></div>
+          <div class="actions"><button type="button" id="palGenerate">Generate Pallet Label</button><button type="button" id="palSample" class="ghost">Sample</button></div>
+        </form>
+        <div id="palletOutput" class="print-area"></div>
       </div>
+    </section>
 
-      <div id="palletSimpleSection" class="section active">
-        <div class="row">
-          <div><label>LWHID / Control #</label><input id="palletLwhid" placeholder="1003140" /></div>
-          <div><label>Customer</label><input id="palletCustomer" placeholder="NISSAN" /></div>
-        </div>
-        <div class="row">
-          <div><label>Customer ID / Comments</label><input id="palletCustid" placeholder="514FS6963" /></div>
-          <div><label>Bay</label><input id="palletBay" placeholder="MR201" /></div>
-        </div>
-        <label>Item Number</label>
-        <input id="palletItem" placeholder="177977200" />
-        <label>Item Description</label>
-        <input id="palletDesc" placeholder="Optional description" />
-        <div class="row">
-          <div><label>Lot Number</label><input id="palletLot" placeholder="00-00-00" /></div>
-          <div><label>Quantity</label><input id="palletQty" placeholder="200" /></div>
-        </div>
-        <label>Date Received</label>
-        <input id="palletDate" placeholder="07/07/2026" />
+    <section id="contact" class="view">
+      <div class="tool-layout">
+        <form class="panel no-print" id="contactForm">
+          <h2>Contact QR Cards</h2>
+          <div class="grid-2"><label>Name<input id="conName" /></label><label>Title<input id="conTitle" /></label><label>Company<input id="conCompany" value="Logistics Warehouse" /></label><label>Phone<input id="conPhone" /></label><label>Email<input id="conEmail" /></label><label>Website<input id="conWebsite" /></label></div>
+          <label>Address<input id="conAddress" /></label>
+          <label>Logo image optional<input id="conLogo" type="file" accept="image/*" /></label>
+          <div class="grid-2"><label>Layout<select id="conLayout"><option value="full">QR + Text</option><option value="qronly">QR Only</option></select></label><label>Copies<input id="conCopies" type="number" min="1" value="1" /></label></div>
+          <div class="actions"><button type="button" id="conGenerate">Generate Contact Card</button><button type="button" id="conSample" class="ghost">Sample</button></div>
+        </form>
+        <div id="contactOutput" class="print-area"></div>
       </div>
+    </section>
 
-      <div id="palletBulkSection" class="section">
-        <label>Pallet Label Rows</label>
-        <textarea id="palletCsv" placeholder="LWHID,Customer,Item,Lot,Qty,Bay,Date Received,Customer ID
-1003140,NISSAN,177977200,00-00-00,200,MR201,07/07/2026,514FS6963"></textarea>
-        <div class="hint">Bulk order: LWHID, Customer, Item, Lot, Qty, Bay, Date Received, Customer ID. Tab-delimited Excel paste also works.</div>
+    <section id="visitor" class="view">
+      <div class="tool-layout">
+        <form class="panel no-print" id="visitorForm">
+          <h2>Visitor Badges</h2>
+          <div class="grid-2"><label>Visitor Name<input id="visName" /></label><label>Company<input id="visCompany" /></label><label>Visiting / Host<input id="visHost" /></label><label>Purpose<input id="visPurpose" /></label><label>Badge Type<select id="visType"><option>Visitor</option><option>Contractor</option><option>Vendor</option><option>Auditor</option><option>Customer</option></select></label><label>Expires<input id="visExpires" type="time" /></label></div>
+          <label>Photo optional<input id="visPhoto" type="file" accept="image/*" /></label>
+          <div class="actions"><button type="button" id="visGenerate">Generate Badge</button><button type="button" id="visLogBtn" class="ghost">Show Visitor Log</button></div>
+        </form>
+        <div><div id="visitorOutput" class="print-area"></div><div id="visitorLog" class="card no-print" hidden></div></div>
       </div>
+    </section>
 
-      <div class="row">
-        <div><label>Copies Each</label><input id="palletCopies" type="number" value="1" min="1" max="10" /></div>
-        <div><label>Barcode Value</label><select id="palletBarcodeField"><option value="lwhid" selected>LWHID</option><option value="bay">Bay</option><option value="item">Item</option><option value="lot">Lot</option></select></div>
+    <section id="settings" class="view no-print">
+      <div class="card">
+        <h2>Settings & Calibration</h2>
+        <p>Use your browser print dialog to select the Zebra printer and the correct media size. This app is installable from GitHub Pages once the manifest and service worker are active.</p>
+        <div class="actions"><button id="calRack">Print 4x6 Calibration</button><button id="calLetter">Print Letter Calibration</button><button id="clearStorage" class="ghost">Clear Saved Settings</button></div>
       </div>
-      <div class="row3">
-        <div><label>Barcode</label><select id="palletShowBarcode"><option value="yes">Show</option><option value="no">Hide</option></select></div>
-        <div><label>QR</label><select id="palletShowQr"><option value="yes">Show</option><option value="no">Hide</option></select></div>
-        <div><label>Customer Size</label><input id="palletCustomerSize" type="number" value="0.33" min="0.2" max="0.6" step="0.02" /></div>
-      </div>
-      <button class="secondary smallbtn" onclick="loadPalletSample()">Load Pallet Sample</button>
-    </div>
-
-
-
-    <div id="contactControls" style="display:none">
-      <h2>Credit Card Contact QR</h2>
-      <div class="hint">Creates a standard vCard QR code so phones can scan and save the contact. Print size is credit card / ID badge size: 3.375in x 2.125in.</div>
-      <div class="row">
-        <div><label>Full Name</label><input id="contactName" placeholder="Tim Jennings" /></div>
-        <div><label>Title</label><input id="contactTitle" placeholder="Operations Manager" /></div>
-      </div>
-      <div class="row">
-        <div><label>Company</label><input id="contactCompany" placeholder="Logistics Warehouse" /></div>
-        <div><label>Phone</label><input id="contactPhone" placeholder="479-555-1234" /></div>
-      </div>
-      <div class="row">
-        <div><label>Email</label><input id="contactEmail" placeholder="name@company.com" /></div>
-        <div><label>Website</label><input id="contactWebsite" placeholder="https://example.com" /></div>
-      </div>
-      <label>Address</label>
-      <input id="contactAddress" placeholder="Street, City, State ZIP" />
-      <label>Optional Logo</label>
-      <input id="contactLogoFile" type="file" accept="image/*" onchange="loadContactLogo(event)" />
-      <input id="contactLogoData" type="hidden" />
-      <button class="secondary smallbtn" onclick="clearContactLogo()">Clear Logo</button>
-      <div class="row3">
-        <div><label>Copies</label><input id="contactCopies" type="number" value="1" min="1" max="100" /></div>
-        <div><label>Layout</label><select id="contactLayout"><option value="full" selected>QR + Text</option><option value="qronly">QR Only</option></select></div>
-        <div><label>QR Size</label><input id="contactQrSize" type="number" value="112" min="80" max="180" step="4" /></div>
-      </div>
-      <button class="secondary smallbtn" onclick="loadContactSample()">Load Contact Sample</button>
-    </div>
-
-    <button class="primary" onclick="generate()">Generate</button>
-    <button class="secondary" onclick="window.print()">Print</button>
-    <button class="secondary" onclick="printTestPage()">Test Print / Calibration</button>
-    <button class="secondary" onclick="exportList()">Export Current List</button>
-    <label class="secondary" style="display:block;text-align:center;border-radius:8px;padding:11px;font-weight:800;cursor:pointer;margin-top:10px;background:#e5e5e5">Import List<input id="importFile" type="file" accept=".txt,.csv" style="display:none" onchange="importList(event)"></label>
-    <button class="secondary" onclick="loadSample()">Load Sample</button>
-    <button class="secondary" onclick="clearAll()">Clear</button>
-
-    <div class="hint">
-      For 4x6 rack labels, print to Zebra as 4x6 landscape. For signs, print to letter-size paper/cardstock.
-      <br><br>
-      Settings are saved in this browser automatically. Note: barcode and QR libraries load from CDN, so internet is needed unless we later package those libraries directly into the file/PWA.
-    </div>
-  </aside>
-
-  <main class="preview-wrap">
-    <div class="count no-print" id="countText">No labels generated yet.</div>
-    <div class="preview-note no-print" id="previewNote"></div>
-    <div class="sheet" id="output"></div>
+      <div class="card"><h3>PWA Status</h3><p id="pwaStatus">Checking...</p></div>
+    </section>
   </main>
-</div>
-
-<script>
-let currentTemplate = 'rack';
-let palletMode = 'simple';
-
-function setTemplate(template) {
-  currentTemplate = template;
-  document.getElementById('tabRack').classList.toggle('active', template === 'rack');
-  document.getElementById('tabSign').classList.toggle('active', template === 'sign');
-  document.getElementById('tabPallet').classList.toggle('active', template === 'pallet');
-  document.getElementById('tabContact').classList.toggle('active', template === 'contact');
-  document.getElementById('rackControls').style.display = template === 'rack' ? 'block' : 'none';
-  document.getElementById('signControls').style.display = template === 'sign' ? 'block' : 'none';
-  document.getElementById('palletControls').style.display = template === 'pallet' ? 'block' : 'none';
-  document.getElementById('contactControls').style.display = template === 'contact' ? 'block' : 'none';
-  if (template === 'pallet') setPalletMode(palletMode || 'simple');
-  else { saveSettings(); generate(); }
-}
-
-function showInputTab(tab) {
-  document.getElementById('pasteSection').classList.toggle('active', tab === 'paste');
-  document.getElementById('batchSection').classList.toggle('active', tab === 'batch');
-  document.getElementById('tabPaste').classList.toggle('active', tab === 'paste');
-  document.getElementById('tabBatch').classList.toggle('active', tab === 'batch');
-}
-
-function parseLocations(text) {
-  return text.split(/[\n,\t]+/).map(x => x.trim()).filter(Boolean);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
-
-function makeId(prefix, index) {
-  return prefix + '_' + index + '_' + Math.random().toString(36).slice(2);
-}
-
-function incrementCode(start, amount) {
-  const match = String(start).match(/^(.*?)(\d+)(\D*)$/);
-  if (!match) return String(start);
-  const prefix = match[1], numText = match[2], suffix = match[3];
-  const next = String(parseInt(numText, 10) + amount).padStart(numText.length, '0');
-  return prefix + next + suffix;
-}
-
-function makeBatch(append) {
-  const start = document.getElementById('batchStart').value.trim();
-  const count = Math.max(1, parseInt(document.getElementById('batchCount').value || '1', 10));
-  if (!start) return alert('Enter a start location first.');
-  const lines = [];
-  for (let i = 0; i < count; i++) lines.push(incrementCode(start, i));
-  const box = document.getElementById('bayList');
-  box.value = append && box.value.trim() ? box.value.trim() + '\n' + lines.join('\n') : lines.join('\n');
-  showInputTab('paste');
-  generate();
-}
-
-function setPalletMode(mode) {
-  palletMode = mode;
-  document.getElementById('palletModeSimple').classList.toggle('active', mode === 'simple');
-  document.getElementById('palletModeBulk').classList.toggle('active', mode === 'bulk');
-  document.getElementById('palletSimpleSection').classList.toggle('active', mode === 'simple');
-  document.getElementById('palletBulkSection').classList.toggle('active', mode === 'bulk');
-  generate();
-}
-
-function getSimplePalletRow() {
-  return {
-    lwhid: document.getElementById('palletLwhid').value.trim(),
-    customer: document.getElementById('palletCustomer').value.trim(),
-    item: document.getElementById('palletItem').value.trim(),
-    desc: document.getElementById('palletDesc').value.trim(),
-    lot: document.getElementById('palletLot').value.trim(),
-    qty: document.getElementById('palletQty').value.trim(),
-    bay: document.getElementById('palletBay').value.trim(),
-    date: document.getElementById('palletDate').value.trim(),
-    custid: document.getElementById('palletCustid').value.trim()
-  };
-}
-
-function getPalletRows() {
-  if (palletMode === 'bulk') return parsePalletRows(document.getElementById('palletCsv').value);
-  const row = getSimplePalletRow();
-  return Object.values(row).some(Boolean) ? [row] : [];
-}
-
-function cleanList() {
-  const seen = new Set();
-  const cleaned = [];
-  parseLocations(document.getElementById('bayList').value).forEach(x => {
-    const key = x.toUpperCase();
-    if (!seen.has(key)) { seen.add(key); cleaned.push(x); }
-  });
-  document.getElementById('bayList').value = cleaned.join('\n');
-  generate();
-}
-
-function getRackTop() {
-  const preset = document.getElementById('spacingPreset').value;
-  if (preset === 'tight') return 1.82;
-  if (preset === 'wide') return 2.12;
-  return 1.96;
-}
-
-function drawBarcode(selector, value, width, height) {
-  if (!window.JsBarcode) return;
-  try { JsBarcode(selector, value, { format: 'CODE128', displayValue: false, margin: 0, width: width, height: height }); }
-  catch (e) { const el = document.querySelector(selector); if (el) el.outerHTML = '<div style="font-size:12px;color:red">Barcode error</div>'; }
-}
-
-function drawQr(el, value, size) {
-  if (!window.QRCode || !el) return;
-  try { new QRCode(el, { text: value, width: size, height: size, correctLevel: QRCode.CorrectLevel.M }); }
-  catch(e) { el.innerHTML = '<div style="font-size:12px;color:red">QR error</div>'; }
-}
-
-function parseCsvLine(line) {
-  const out = []; let cur = ''; let inQuotes = false;
-  for (let i=0;i<line.length;i++) {
-    const ch=line[i], next=line[i+1];
-    if (ch === '"' && inQuotes && next === '"') { cur += '"'; i++; }
-    else if (ch === '"') inQuotes = !inQuotes;
-    else if (ch === ',' && !inQuotes) { out.push(cur.trim()); cur=''; }
-    else cur += ch;
-  }
-  out.push(cur.trim()); return out;
-}
-function parsePalletRows(text) {
-  return text.split(/\n+/).map(x => x.trim()).filter(Boolean).map(line => {
-    const p = line.indexOf('\t') >= 0 ? line.split(/\t+/).map(x => x.trim()) : parseCsvLine(line);
-    return { lwhid:p[0]||'', customer:p[1]||'', item:p[2]||'', desc:p[8]||'', lot:p[3]||'', qty:p[4]||'', bay:p[5]||'', date:p[6]||'', custid:p[7]||'' };
-  });
-}
-function qrPayload(row) {
-  return ['LWHID:'+row.lwhid,'Customer:'+row.customer,'Item:'+row.item,'Description:'+(row.desc||''),'Lot:'+row.lot,'Qty:'+row.qty,'Bay:'+row.bay,'Date:'+row.date,'CustomerID:'+row.custid].filter(x => !x.endsWith(':')).join('|');
-}
-function pickBarcodeValue(row) {
-  const f = document.getElementById('palletBarcodeField').value;
-  return row[f] || row.lwhid || row.bay || row.item || row.lot || 'PALLET';
-}
-
-
-function vcardEscape(v) {
-  return String(v || '').replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
-}
-function makeVCard() {
-  const name = document.getElementById('contactName').value.trim();
-  const title = document.getElementById('contactTitle').value.trim();
-  const company = document.getElementById('contactCompany').value.trim();
-  const phone = document.getElementById('contactPhone').value.trim();
-  const email = document.getElementById('contactEmail').value.trim();
-  const website = document.getElementById('contactWebsite').value.trim();
-  const address = document.getElementById('contactAddress').value.trim();
-  const lines = ['BEGIN:VCARD','VERSION:3.0'];
-  if (name) { lines.push('FN:' + vcardEscape(name)); lines.push('N:' + vcardEscape(name) + ';;;;'); }
-  if (company) lines.push('ORG:' + vcardEscape(company));
-  if (title) lines.push('TITLE:' + vcardEscape(title));
-  if (phone) lines.push('TEL;TYPE=CELL,VOICE:' + vcardEscape(phone));
-  if (email) lines.push('EMAIL;TYPE=INTERNET:' + vcardEscape(email));
-  if (website) lines.push('URL:' + vcardEscape(website));
-  if (address) lines.push('ADR;TYPE=WORK:;;' + vcardEscape(address) + ';;;;');
-  lines.push('END:VCARD');
-  return lines.join('\n');
-}
-
-function generate() {
-  const locations = parseLocations(document.getElementById('bayList').value);
-  const holder = document.getElementById('output');
-  holder.innerHTML = '';
-  let total = 0;
-  if (currentTemplate === 'sign') total = generateSigns(locations, holder);
-  else if (currentTemplate === 'pallet') total = generatePalletLabels(holder);
-  else if (currentTemplate === 'contact') total = generateContactCards(holder);
-  else total = generateRackLabels(locations, holder);
-  const sourceCount = currentTemplate === 'pallet' ? getPalletRows().length : (currentTemplate === 'contact' ? 1 : locations.length);
-  document.getElementById('countText').textContent = total ? `${total} page${total === 1 ? '' : 's'} generated from ${sourceCount} record${sourceCount === 1 ? '' : 's'}.` : 'No labels generated yet.';
-  document.getElementById('previewNote').textContent = currentTemplate === 'sign' ? 'Preview: 8.5x11 warehouse signs. Print on letter-size paper/cardstock.' : (currentTemplate === 'pallet' ? 'Preview: 4x6 customer/pallet labels.' : (currentTemplate === 'contact' ? 'Preview: credit card / ID badge size contact QR cards.' : 'Preview: 4x6 rack labels. Print to Zebra as 4x6 landscape.'));
-  saveSettings();
-}
-
-function generateRackLabels(locations, holder) {
-  const copies = Math.max(1, parseInt(document.getElementById('copies').value || '1', 10));
-  const textSize = parseFloat(document.getElementById('rackTextSize').value || '1.12');
-  const barcodeHeight = Math.max(45, parseInt(document.getElementById('rackBarcodeHeight').value || '88', 10));
-  const barcodeWidth = Math.max(1, parseFloat(document.getElementById('rackBarcodeWidth').value || '2'));
-  const top = getRackTop();
-  const showBarcode = document.getElementById('rackShowBarcode').value === 'yes';
-  const showQr = document.getElementById('rackShowQr').value === 'yes';
-  let total = 0;
-
-  locations.forEach((loc) => {
-    for (let c = 0; c < copies; c++) {
-      total++;
-      const barcodeId = makeId('rackBarcode', total);
-      const qrId = makeId('rackQr', total);
-      const safe = escapeHtml(loc);
-      const div = document.createElement('div');
-      div.className = 'rack-label';
-      div.innerHTML = `
-        <div class="rack-big-box"><div class="rack-big-text" style="font-size:${textSize}in">${safe}</div></div>
-        <div class="rack-barcode-area" style="top:${top}in; display:${showBarcode ? 'block' : 'none'}">
-          <svg id="${barcodeId}"></svg>
-          <div class="rack-caption">${safe}</div>
-        </div>
-        <div class="rack-qr-area" id="${qrId}" style="top:${top}in; display:${showQr ? 'block' : 'none'}"></div>`;
-      holder.appendChild(div);
-      if (showBarcode) drawBarcode('#' + barcodeId, loc, barcodeWidth, barcodeHeight);
-      if (showQr) drawQr(document.getElementById(qrId), loc, 104);
-    }
-  });
-  return total;
-}
-
-function generateSigns(locations, holder) {
-  const copies = Math.max(1, parseInt(document.getElementById('signCopies').value || '1', 10));
-  const subtitle = document.getElementById('signSubtitle').value.trim();
-  const orientation = document.getElementById('signOrientation').value;
-  const titleSize = parseFloat(document.getElementById('signTitleSize').value || '2.35');
-  const barcodeHeight = Math.max(80, parseInt(document.getElementById('signBarcodeHeight').value || '155', 10));
-  const barcodeWidth = Math.max(1, parseFloat(document.getElementById('signBarcodeWidth').value || '3'));
-  const showBarcode = document.getElementById('signShowBarcode').value === 'yes';
-  const showQr = document.getElementById('signShowQr').value === 'yes';
-  let total = 0;
-
-  locations.forEach((loc) => {
-    for (let c = 0; c < copies; c++) {
-      total++;
-      const barcodeId = makeId('signBarcode', total);
-      const qrId = makeId('signQr', total);
-      const safe = escapeHtml(loc);
-      const safeSubtitle = escapeHtml(subtitle);
-      const div = document.createElement('div');
-      div.className = 'sign' + (orientation === 'portrait' ? ' portrait' : '');
-      div.innerHTML = `
-        <div class="sign-title-box"><div class="sign-title" style="font-size:${titleSize}in">${safe}</div></div>
-        <div class="sign-subtitle">${safeSubtitle}</div>
-        <div class="sign-bottom">
-          <div class="sign-barcode-wrap" style="display:${showBarcode ? 'block' : 'none'}">
-            <svg id="${barcodeId}"></svg>
-            <div class="sign-caption">${safe}</div>
-          </div>
-          <div class="sign-qr" id="${qrId}" style="display:${showQr ? 'block' : 'none'}"></div>
-        </div>`;
-      holder.appendChild(div);
-      if (showBarcode) drawBarcode('#' + barcodeId, loc, barcodeWidth, barcodeHeight);
-      if (showQr) drawQr(document.getElementById(qrId), loc, 220);
-    }
-  });
-  return total;
-}
-
-function generatePalletLabels(holder) {
-  const rows = getPalletRows();
-  const copies = Math.max(1, parseInt(document.getElementById('palletCopies').value || '1', 10));
-  const showBarcode = document.getElementById('palletShowBarcode').value === 'yes';
-  const showQr = document.getElementById('palletShowQr').value === 'yes';
-  const customerSize = parseFloat(document.getElementById('palletCustomerSize').value || '0.33');
-  let total = 0;
-  rows.forEach(row => {
-    for (let c=0;c<copies;c++) {
-      total++;
-      const barcodeId = makeId('palletBarcode', total);
-      const qrId = makeId('palletQr', total);
-      const barcodeValue = pickBarcodeValue(row);
-      const div = document.createElement('div');
-      div.className = 'pallet-label';
-      div.innerHTML = `
-        <div class="pallet-header">
-          <div class="pallet-customer" style="font-size:${customerSize}in">${escapeHtml(row.customer || 'CUSTOMER')}</div>
-          <div class="pallet-lwhid">LWHID<br>${escapeHtml(row.lwhid)}</div>
-        </div>
-        <div class="pallet-grid">
-          <div class="lbl">Item</div><div class="val">${escapeHtml(row.item)}</div>
-          <div class="lbl">Desc</div><div class="val">${escapeHtml(row.desc || '')}</div>
-          <div class="lbl">Lot</div><div class="val">${escapeHtml(row.lot)}</div>
-          <div class="lbl">Qty</div><div class="val">${escapeHtml(row.qty)}</div>
-          <div class="lbl">Bay</div><div class="val">${escapeHtml(row.bay)}</div>
-          <div class="lbl">Date Rec</div><div class="val">${escapeHtml(row.date)}</div>
-          <div class="lbl">Cust ID</div><div class="val">${escapeHtml(row.custid)}</div>
-        </div>
-        <div class="pallet-smallnote">Scan value: ${escapeHtml(barcodeValue)}</div>
-        <div class="pallet-bottom">
-          <div class="pallet-barcode-wrap" style="display:${showBarcode ? 'block' : 'none'}">
-            <svg id="${barcodeId}"></svg>
-            <div class="pallet-caption">${escapeHtml(barcodeValue)}</div>
-          </div>
-          <div class="pallet-qr" id="${qrId}" style="display:${showQr ? 'block' : 'none'}"></div>
-        </div>`;
-      holder.appendChild(div);
-      if (showBarcode) drawBarcode('#' + barcodeId, barcodeValue, 2, 78);
-      if (showQr) drawQr(document.getElementById(qrId), qrPayload(row), 100);
-    }
-  });
-  return total;
-}
-
-
-
-function generateContactCards(holder) {
-  const copies = Math.max(1, parseInt(document.getElementById('contactCopies').value || '1', 10));
-  const layout = document.getElementById('contactLayout').value;
-  const qrSize = Math.max(80, parseInt(document.getElementById('contactQrSize').value || '112', 10));
-  const name = document.getElementById('contactName').value.trim() || 'Contact Name';
-  const company = document.getElementById('contactCompany').value.trim();
-  const title = document.getElementById('contactTitle').value.trim();
-  const phone = document.getElementById('contactPhone').value.trim();
-  const email = document.getElementById('contactEmail').value.trim();
-  const website = document.getElementById('contactWebsite').value.trim();
-  const logoData = document.getElementById('contactLogoData').value;
-  const vcard = makeVCard();
-  let total = 0;
-  for (let c=0;c<copies;c++) {
-    total++;
-    const qrId = makeId('contactQr', total);
-    const div = document.createElement('div');
-    div.className = 'contact-card' + (layout === 'qronly' ? ' qronly' : '');
-    if (layout === 'qronly') {
-      div.innerHTML = `<div class="contact-qr" id="${qrId}"></div>`;
-    } else {
-      div.innerHTML = `
-        <div class="contact-qr" id="${qrId}"></div>
-        <div class="contact-info">
-          <div class="contact-name">${escapeHtml(name)}</div>
-          <div class="contact-company">${escapeHtml(company)}</div>
-          <div class="contact-title">${escapeHtml(title)}</div>
-          <div class="contact-detail">${escapeHtml(phone)}</div>
-          <div class="contact-detail">${escapeHtml(email)}</div>
-          <div class="contact-detail">${escapeHtml(website)}</div>
-        </div>
-        ${logoData ? `<img class="contact-logo" src="${logoData}" alt="Logo" />` : ''}`;
-    }
-    holder.appendChild(div);
-    const qrEl = document.getElementById(qrId);
-    if (qrEl) {
-      qrEl.style.width = (qrSize/100) + 'in';
-      qrEl.style.height = (qrSize/100) + 'in';
-      drawQr(qrEl, vcard, qrSize);
-    }
-  }
-  return total;
-}
-
-function loadContactLogo(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('contactLogoData').value = e.target.result;
-    generate();
-  };
-  reader.readAsDataURL(file);
-}
-function clearContactLogo() {
-  document.getElementById('contactLogoData').value = '';
-  document.getElementById('contactLogoFile').value = '';
-  generate();
-}
-
-function loadContactSample() {
-  document.getElementById('contactName').value = 'Tim Jennings';
-  document.getElementById('contactTitle').value = 'Operations Manager';
-  document.getElementById('contactCompany').value = 'Logistics Warehouse';
-  document.getElementById('contactPhone').value = '479-555-1234';
-  document.getElementById('contactEmail').value = 'tjennings@logistics-warehouse.com';
-  document.getElementById('contactWebsite').value = '';
-  document.getElementById('contactAddress').value = '';
-  generate();
-}
-
-function loadPalletSample() {
-  document.getElementById('palletCsv').value = '1003140,NISSAN,177977200,00-00-00,200,MR201,07/07/2026,514FS6963\n1003141,SONOCO,REEL-40,A-7781,12,WHSE85-A12,07/07/2026,CUST-889';
-  generate();
-}
-
-function printTestPage() {
-  const holder = document.getElementById('output');
-  holder.innerHTML = '<div class="calibration-page"><h1>Print Calibration Test</h1><p>Use this to verify printer scaling. Print at 100% / Actual Size. Do not use Fit to Page.</p><div class="calibration-box">6in x 4in Test Box<br>Rack Label Size</div><p>If this box is not exactly 6 inches wide by 4 inches tall, adjust printer/browser scaling.</p></div>';
-  document.getElementById('countText').textContent = 'Calibration page generated.';
-  document.getElementById('previewNote').textContent = 'Print at 100% / Actual Size.';
-}
-
-function exportList() {
-  let content = currentTemplate === 'pallet' ? (palletMode === 'bulk' ? document.getElementById('palletCsv').value : JSON.stringify(getSimplePalletRow(), null, 2)) : (currentTemplate === 'contact' ? makeVCard() : document.getElementById('bayList').value);
-  const blob = new Blob([content], {type:'text/plain'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = currentTemplate + '_labels_' + new Date().toISOString().slice(0,10) + '.txt';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function importList(event) {
-  const file = event.target.files[0]; if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => { if (currentTemplate === 'pallet') { setPalletMode('bulk'); document.getElementById('palletCsv').value = e.target.result; } else document.getElementById('bayList').value = e.target.result; generate(); };
-  reader.readAsText(file); event.target.value = '';
-}
-function saveSettings() {
-  const ids = ['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactLogoData','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactCopies','contactLayout','contactQrSize'];
-  const data = { currentTemplate, palletMode };
-  ids.forEach(id => { const el=document.getElementById(id); if (el) data[id]=el.value; });
-  localStorage.setItem('warehouseLabelSettingsV5', JSON.stringify(data));
-}
-function loadSettings() {
-  try {
-    const data = JSON.parse(localStorage.getItem('warehouseLabelSettingsV5') || '{}');
-    Object.keys(data).forEach(id => { if (id !== 'currentTemplate') { const el=document.getElementById(id); if (el) el.value=data[id]; }});
-    if (data.currentTemplate) currentTemplate = data.currentTemplate;
-    if (data.palletMode) palletMode = data.palletMode;
-  } catch(e) {}
-}
-
-function loadSample() {
-  if (currentTemplate === 'contact') { loadContactSample(); return; }
-  document.getElementById('bayList').value = currentTemplate === 'sign' ? 'MR201\nMR202\nMR203' : 'MR201\nMR202\nMR203\nMR204\nMR205';
-  if (currentTemplate === 'sign' && !document.getElementById('signSubtitle').value) document.getElementById('signSubtitle').value = 'WAREHOUSE BAY LOCATION';
-  generate();
-}
-
-function clearAll() {
-  document.getElementById('bayList').value = '';
-  document.getElementById('palletCsv').value = '';
-  ['palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate'].forEach(id => document.getElementById(id).value = '');
-  ['contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactLogoData'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('output').innerHTML = '';
-  document.getElementById('countText').textContent = 'No labels generated yet.';
-  document.getElementById('previewNote').textContent = '';
-}
-
-['rackTextSize','copies','spacingPreset','rackShowBarcode','rackShowQr','rackBarcodeHeight','rackBarcodeWidth','signSubtitle','signOrientation','signCopies','signTitleSize','signShowBarcode','signShowQr','signBarcodeHeight','signBarcodeWidth','palletCsv','palletLwhid','palletCustomer','palletCustid','palletBay','palletItem','palletDesc','palletLot','palletQty','palletDate','palletCopies','palletBarcodeField','palletShowBarcode','palletShowQr','palletCustomerSize','contactLogoData','contactName','contactTitle','contactCompany','contactPhone','contactEmail','contactWebsite','contactAddress','contactLogoData','contactCopies','contactLayout','contactQrSize'].forEach(id => {
-  document.addEventListener('change', e => { if (e.target && e.target.id === id) generate(); });
-  document.addEventListener('keyup', e => { if (e.target && e.target.id === id) generate(); });
-});
-
-document.addEventListener('keyup', e => { if (e.target && e.target.id === 'bayList') generate(); });
-window.addEventListener('load', () => { loadSettings(); document.getElementById('bayList').value = 'MR201'; setTemplate(currentTemplate || 'rack'); generate(); });
-</script>
-
-<script>
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  window.addEventListener('load', function () {
-    navigator.serviceWorker.register('./service-worker.js').catch(function (err) {
-      console.warn('Service worker registration failed:', err);
-    });
-  });
-}
-</script>
-
-  <script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", function () {
-    navigator.serviceWorker.register("./service-worker.js");
-  });
-}
-</script>
+  <div id="toast" class="toast no-print" hidden></div>
 </body>
 </html>

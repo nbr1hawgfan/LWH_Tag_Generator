@@ -1,29 +1,34 @@
-# LWH Tag Generator PWA v1.1
+# LWH Warehouse Toolkit v1.0.0
 
-This package is ready for GitHub Pages and should trigger Chrome/Edge install once published over HTTPS.
+Installable GitHub Pages PWA for Logistics Warehouse tag/sign generation.
 
-## Files included
-- `index.html`
-- `manifest.json`
-- `service-worker.js`
-- `icons/icon-192.png`
-- `icons/icon-512.png`
+## Included modules
 
-## Upload to GitHub
-Upload the contents of this folder to the repo root:
+- 4x6 Rack Labels
+- 8.5x11 Bay / Aisle Signs
+- Pallet Labels with Simple Entry and Bulk Paste
+- Contact QR Cards with optional logo
+- Visitor Badges with visitor log
+- PWA manifest and service worker
 
-`https://github.com/nbr1hawgfan/LWH_Tag_Generator`
+## Deploy
 
-Then open:
+Upload all files/folders to the root of your GitHub Pages repo:
 
-`https://nbr1hawgfan.github.io/LWH_Tag_Generator/`
+```text
+index.html
+manifest.json
+service-worker.js
+css/
+js/
+icons/
+assets/
+README.md
+```
 
-## Install tips
-After uploading, open the site and hard refresh once:
+Then hard refresh the published GitHub Pages URL with Ctrl+Shift+R.
+Chrome/Edge should show Install App once the manifest and service worker are detected.
 
-Windows Chrome/Edge: `Ctrl + Shift + R`
+## Important
 
-Then wait 10–30 seconds. The install icon usually appears in the address bar, or under the browser menu as **Install app**.
-
-## Important fix in v1.1
-The service worker now pre-caches only local files. External CDN scripts are cached only after they load successfully. This makes the service worker install much more reliable on GitHub Pages.
+This app uses JsBarcode and QRCode.js from CDN for barcode/QR rendering. The service worker will cache them after first successful load.

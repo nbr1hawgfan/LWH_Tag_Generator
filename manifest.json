@@ -1,25 +1,15 @@
 {
-  "name": "LWH Tag Generator",
-  "short_name": "LWH Tags",
-  "description": "Warehouse rack labels, bay signs, pallet labels, and contact QR cards for Logistics Warehouse.",
+  "name": "LWH Warehouse Toolkit",
+  "short_name": "LWH Toolkit",
+  "description": "Logistics Warehouse label, sign, QR, and visitor badge toolkit.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f4f4",
-  "theme_color": "#111827",
   "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#7a0019",
   "icons": [
-    {
-      "src": "icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    {"src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
   ]
 }

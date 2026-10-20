@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lwh-warehouse-toolkit-v1.0.0';
+const CACHE_NAME = 'lwh-warehouse-toolkit-v1.0.1';
 const APP_SHELL = [
   './','./index.html','./manifest.json','./css/app.css','./css/print.css',
   './js/app.js','./js/storage.js','./js/qr.js','./js/barcode.js','./js/ui.js','./js/labels.js','./js/visitors.js',
